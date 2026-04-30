@@ -26,4 +26,11 @@ Thumbs.db
 # IDEs
 .vscode/
 .idea/
+
+# Web
+node_modules/
+dist/
+.env
+.env.local
+.env.*.local
 VERCEL_DEPLOYMENT_GUIDE.md

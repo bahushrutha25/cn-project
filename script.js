@@ -1,40 +1,52 @@
-function openModal(id){
+const API_BASE_URL = import.meta.env.VITE_API_URL || "";
+
+window.openModal = function(id){
     document.getElementById(id).style.display = "block";
 }
 
-function closeModal(id){
+window.closeModal = function(id){
     document.getElementById(id).style.display = "none";
 }
 
 let lastData = null;
 
 /* CLUSTERING */
-function runClustering(){
-
+window.runClustering = function(){
     let file = document.querySelector("input[type=file]").files[0];
     let min_samples = document.querySelector("input[type=number]").value;
+
+    if (!file) {
+        alert("Please select a file first.");
+        return;
+    }
 
     let formData = new FormData();
     formData.append("file", file);
     formData.append("min_samples", min_samples);
 
-    fetch("/api/cluster", {
+    fetch(`${API_BASE_URL}/api/cluster`, {
         method: "POST",
         body: formData
     })
-    .then(res => res.json())
+    .then(res => {
+        if (!res.ok) throw new Error("Network response was not ok");
+        return res.json();
+    })
     .then(data => {
         lastData = data;
         document.querySelector(".result-box p").innerText =
             data.labels.join(",");
 
         drawGraph(data.x, data.y, data.labels);
+    })
+    .catch(err => {
+        console.error("Clustering failed:", err);
+        alert("Clustering failed. Check the console for details.");
     });
 }
 
 /* GRAPH */
 function drawGraph(x,y,labels){
-
     let unique = [...new Set(labels)];
     let traces = [];
 
@@ -69,7 +81,7 @@ function drawGraph(x,y,labels){
     });
 }
 
-function downloadFiles(){
+window.downloadFiles = function(){
     if(!lastData) {
         alert("Please run clustering first!");
         return;

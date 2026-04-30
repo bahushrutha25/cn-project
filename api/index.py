@@ -2,9 +2,15 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import pandas as pd
 from sklearn.cluster import OPTICS
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = Flask(__name__)
-CORS(app)
+# Allow CORS from a specific frontend URL if defined in .env, otherwise allow all
+frontend_url = os.getenv("FRONTEND_URL", "*")
+CORS(app, resources={r"/api/*": {"origins": frontend_url}})
 
 @app.route('/api/cluster', methods=['POST'])
 def cluster():
