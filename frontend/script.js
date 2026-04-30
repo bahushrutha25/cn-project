@@ -8,41 +8,86 @@ window.closeModal = function(id){
     document.getElementById(id).style.display = "none";
 }
 
-let lastData = null;
+/* CLUSTERING WITHOUT BACKEND */
+let finalCSV = "";
+
+function runClustering(){
 
 /* CLUSTERING */
 window.runClustering = function(){
     let file = document.querySelector("input[type=file]").files[0];
-    let min_samples = document.querySelector("input[type=number]").value;
+    let min_samples = parseInt(document.querySelector("input[type=number]").value);
 
-    if (!file) {
-        alert("Please select a file first.");
+    if(!file){
+        alert("Please upload a CSV file first");
         return;
     }
 
-    let formData = new FormData();
-    formData.append("file", file);
-    formData.append("min_samples", min_samples);
+    let reader = new FileReader();
 
-    fetch(`${API_BASE_URL}/cluster`, {
-        method: "POST",
-        body: formData
-    })
-    .then(res => {
-        if (!res.ok) throw new Error("Network response was not ok");
-        return res.json();
-    })
-    .then(data => {
-        lastData = data;
+    reader.onload = function(e){
+        let text = e.target.result;
+        let rows = text.trim().split("\n").slice(1);
+
+        let x = [];
+        let y = [];
+
+        rows.forEach(row=>{
+            let values = row.split(",");
+            x.push(parseFloat(values[0]));
+            y.push(parseFloat(values[1]));
+        });
+
+        let labels = simpleClustering(x, y, min_samples);
+
         document.querySelector(".result-box p").innerText =
-            data.labels.join(",");
+            labels.join(",");
 
-        drawGraph(data.x, data.y, data.labels);
-    })
-    .catch(err => {
-        console.error("Clustering failed:", err);
-        alert("Clustering failed. Check the console for details.");
-    });
+        drawGraph(x, y, labels);
+
+        finalCSV = "x,y,cluster\n";
+        for(let i=0;i<x.length;i++){
+            finalCSV += `${x[i]},${y[i]},${labels[i]}\n`;
+        }
+    };
+
+    reader.readAsText(file);
+}
+
+/* SIMPLE DENSITY BASED CLUSTERING */
+function simpleClustering(x, y, min_samples){
+
+    let labels = new Array(x.length).fill(-1);
+    let clusterId = 0;
+    let eps = 5;
+
+    for(let i=0;i<x.length;i++){
+
+        if(labels[i] !== -1){
+            continue;
+        }
+
+        let neighbors = [];
+
+        for(let j=0;j<x.length;j++){
+            let distance = Math.sqrt(
+                Math.pow(x[i]-x[j],2) + Math.pow(y[i]-y[j],2)
+            );
+
+            if(distance <= eps){
+                neighbors.push(j);
+            }
+        }
+
+        if(neighbors.length >= min_samples){
+            neighbors.forEach(index=>{
+                labels[index] = clusterId;
+            });
+            clusterId++;
+        }
+    }
+
+    return labels;
 }
 
 /* GRAPH */
@@ -71,7 +116,7 @@ function drawGraph(x,y,labels){
     });
 
     Plotly.newPlot("graph", traces, {
-        title:"OPTICS Clustering",
+        title:"OPTICS Clustering Visualization",
         paper_bgcolor:"#0a192f",
         plot_bgcolor:"#0a192f",
         font:{color:"white"}
@@ -81,24 +126,18 @@ function drawGraph(x,y,labels){
     });
 }
 
-window.downloadFiles = function(){
-    if(!lastData) {
-        alert("Please run clustering first!");
+/* DOWNLOAD RESULT */
+function downloadFiles(){
+
+    if(finalCSV === ""){
+        alert("Please run clustering first");
         return;
     }
-    
-    let csvContent = "x,y,cluster\n";
-    for(let i=0; i < lastData.x.length; i++){
-        csvContent += `${lastData.x[i]},${lastData.y[i]},${lastData.labels[i]}\n`;
-    }
-    
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", "result.csv");
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
+
+    let blob = new Blob([finalCSV], {type:"text/csv"});
+    let link = document.createElement("a");
+
+    link.href = URL.createObjectURL(blob);
+    link.download = "result.csv";
     link.click();
-    document.body.removeChild(link);
 }
