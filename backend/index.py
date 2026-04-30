@@ -10,9 +10,9 @@ load_dotenv()
 app = Flask(__name__)
 # Allow CORS from a specific frontend URL if defined in .env, otherwise allow all
 frontend_url = os.getenv("FRONTEND_URL", "*")
-CORS(app, resources={r"/api/*": {"origins": frontend_url}})
+CORS(app, resources={r"/*": {"origins": frontend_url}})
 
-@app.route('/api/cluster', methods=['POST'])
+@app.route('/cluster', methods=['POST'])
 def cluster():
     if 'file' not in request.files:
         return jsonify({"error": "No file part"}), 400
@@ -40,4 +40,4 @@ def cluster():
 
 # For local development
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, port=5000)

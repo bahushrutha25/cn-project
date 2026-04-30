@@ -1,38 +1,52 @@
-function openModal(id){
+const API_BASE_URL = import.meta.env.VITE_API_URL || "";
+
+window.openModal = function(id){
     document.getElementById(id).style.display = "block";
 }
 
-function closeModal(id){
+window.closeModal = function(id){
     document.getElementById(id).style.display = "none";
 }
 
-/* CLUSTERING */
-function runClustering(){
+let lastData = null;
 
+/* CLUSTERING */
+window.runClustering = function(){
     let file = document.querySelector("input[type=file]").files[0];
     let min_samples = document.querySelector("input[type=number]").value;
+
+    if (!file) {
+        alert("Please select a file first.");
+        return;
+    }
 
     let formData = new FormData();
     formData.append("file", file);
     formData.append("min_samples", min_samples);
 
-    fetch("http://127.0.0.1:5000/cluster", {
+    fetch(`${API_BASE_URL}/cluster`, {
         method: "POST",
         body: formData
     })
-    .then(res => res.json())
+    .then(res => {
+        if (!res.ok) throw new Error("Network response was not ok");
+        return res.json();
+    })
     .then(data => {
-
+        lastData = data;
         document.querySelector(".result-box p").innerText =
             data.labels.join(",");
 
         drawGraph(data.x, data.y, data.labels);
+    })
+    .catch(err => {
+        console.error("Clustering failed:", err);
+        alert("Clustering failed. Check the console for details.");
     });
 }
 
 /* GRAPH */
 function drawGraph(x,y,labels){
-
     let unique = [...new Set(labels)];
     let traces = [];
 
@@ -67,6 +81,24 @@ function drawGraph(x,y,labels){
     });
 }
 
-function downloadFiles(){
-    window.open("http://127.0.0.1:5000/download");
+window.downloadFiles = function(){
+    if(!lastData) {
+        alert("Please run clustering first!");
+        return;
+    }
+    
+    let csvContent = "x,y,cluster\n";
+    for(let i=0; i < lastData.x.length; i++){
+        csvContent += `${lastData.x[i]},${lastData.y[i]},${lastData.labels[i]}\n`;
+    }
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", "result.csv");
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 }
