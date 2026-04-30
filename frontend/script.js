@@ -1,8 +1,10 @@
-function openModal(id){
+const API_BASE_URL = import.meta.env.VITE_API_URL || "";
+
+window.openModal = function(id){
     document.getElementById(id).style.display = "block";
 }
 
-function closeModal(id){
+window.closeModal = function(id){
     document.getElementById(id).style.display = "none";
 }
 
@@ -11,6 +13,8 @@ let finalCSV = "";
 
 function runClustering(){
 
+/* CLUSTERING */
+window.runClustering = function(){
     let file = document.querySelector("input[type=file]").files[0];
     let min_samples = parseInt(document.querySelector("input[type=number]").value);
 
@@ -88,7 +92,6 @@ function simpleClustering(x, y, min_samples){
 
 /* GRAPH */
 function drawGraph(x,y,labels){
-
     let unique = [...new Set(labels)];
     let traces = [];
 
