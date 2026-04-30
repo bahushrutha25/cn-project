@@ -6,28 +6,84 @@ function closeModal(id){
     document.getElementById(id).style.display = "none";
 }
 
-/* CLUSTERING */
+/* CLUSTERING WITHOUT BACKEND */
+let finalCSV = "";
+
 function runClustering(){
 
     let file = document.querySelector("input[type=file]").files[0];
-    let min_samples = document.querySelector("input[type=number]").value;
+    let min_samples = parseInt(document.querySelector("input[type=number]").value);
 
-    let formData = new FormData();
-    formData.append("file", file);
-    formData.append("min_samples", min_samples);
+    if(!file){
+        alert("Please upload a CSV file first");
+        return;
+    }
 
-    fetch("http://127.0.0.1:5000/cluster", {
-        method: "POST",
-        body: formData
-    })
-    .then(res => res.json())
-    .then(data => {
+    let reader = new FileReader();
+
+    reader.onload = function(e){
+        let text = e.target.result;
+        let rows = text.trim().split("\n").slice(1);
+
+        let x = [];
+        let y = [];
+
+        rows.forEach(row=>{
+            let values = row.split(",");
+            x.push(parseFloat(values[0]));
+            y.push(parseFloat(values[1]));
+        });
+
+        let labels = simpleClustering(x, y, min_samples);
 
         document.querySelector(".result-box p").innerText =
-            data.labels.join(",");
+            labels.join(",");
 
-        drawGraph(data.x, data.y, data.labels);
-    });
+        drawGraph(x, y, labels);
+
+        finalCSV = "x,y,cluster\n";
+        for(let i=0;i<x.length;i++){
+            finalCSV += `${x[i]},${y[i]},${labels[i]}\n`;
+        }
+    };
+
+    reader.readAsText(file);
+}
+
+/* SIMPLE DENSITY BASED CLUSTERING */
+function simpleClustering(x, y, min_samples){
+
+    let labels = new Array(x.length).fill(-1);
+    let clusterId = 0;
+    let eps = 5;
+
+    for(let i=0;i<x.length;i++){
+
+        if(labels[i] !== -1){
+            continue;
+        }
+
+        let neighbors = [];
+
+        for(let j=0;j<x.length;j++){
+            let distance = Math.sqrt(
+                Math.pow(x[i]-x[j],2) + Math.pow(y[i]-y[j],2)
+            );
+
+            if(distance <= eps){
+                neighbors.push(j);
+            }
+        }
+
+        if(neighbors.length >= min_samples){
+            neighbors.forEach(index=>{
+                labels[index] = clusterId;
+            });
+            clusterId++;
+        }
+    }
+
+    return labels;
 }
 
 /* GRAPH */
@@ -57,7 +113,7 @@ function drawGraph(x,y,labels){
     });
 
     Plotly.newPlot("graph", traces, {
-        title:"OPTICS Clustering",
+        title:"OPTICS Clustering Visualization",
         paper_bgcolor:"#0a192f",
         plot_bgcolor:"#0a192f",
         font:{color:"white"}
@@ -67,6 +123,18 @@ function drawGraph(x,y,labels){
     });
 }
 
+/* DOWNLOAD RESULT */
 function downloadFiles(){
-    window.open("http://127.0.0.1:5000/download");
+
+    if(finalCSV === ""){
+        alert("Please run clustering first");
+        return;
+    }
+
+    let blob = new Blob([finalCSV], {type:"text/csv"});
+    let link = document.createElement("a");
+
+    link.href = URL.createObjectURL(blob);
+    link.download = "result.csv";
+    link.click();
 }
